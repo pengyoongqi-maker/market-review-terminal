@@ -22,7 +22,6 @@
     .tb-btn.primary{background:var(--white);color:var(--bg);border-color:var(--white);font-weight:700}
     .tb-btn.primary:hover{opacity:.85}
     [data-theme="light"] .tb-btn.primary{background:#111;color:#fff;border-color:#111}
-    .tb-btn.danger:hover{border-color:#c0392b;color:#c0392b}
     .s-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0}
     .s-dot.on{background:#5cdb5c;box-shadow:0 0 6px #5cdb5c}
     .s-dot.syncing{background:#f0c040;box-shadow:0 0 6px #f0c040;animation:pulse 1s infinite}
@@ -62,25 +61,28 @@
     .record-body{padding:16px;display:flex;flex-direction:column;gap:18px;background:var(--bg)}
     .asset-block{border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
     .asset-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);gap:12px;flex-wrap:wrap}
-    .asset-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-    .asset-label{font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2)}
-    .asset-name{font-size:16px;font-weight:700;color:var(--white);letter-spacing:-0.01em}
+    .asset-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+    .asset-label{font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);white-space:nowrap}
+    .asset-name{font-size:16px;font-weight:700;color:var(--white);letter-spacing:-0.01em;white-space:nowrap}
     [data-theme="light"] .asset-name{color:#111}
+    /* CHIP TICKER BAR */
     .ticker-bar{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-    .tick-chip{padding:4px 9px;border-radius:2px;border:1px solid var(--line-2);background:var(--surface);font-size:11px;letter-spacing:0.08em;color:var(--muted-2);cursor:pointer;font-family:"SF Mono","Fira Code",monospace;transition:.15s;display:flex;align-items:center;gap:5px}
+    .tick-chip{padding:3px 8px;border-radius:2px;border:1px solid var(--line-2);background:var(--surface);font-size:11px;letter-spacing:0.06em;color:var(--muted-2);cursor:pointer;font-family:"SF Mono","Fira Code",monospace;transition:.15s;display:flex;align-items:center;gap:4px;white-space:nowrap}
     .tick-chip:hover{background:var(--surface-3);color:var(--white)}
     .tick-chip.active{background:var(--white);color:var(--bg);border-color:var(--white)}
     [data-theme="light"] .tick-chip.active{background:#111;color:#fff;border-color:#111}
-    .tick-chip .del-chip{font-size:10px;opacity:.5;line-height:1}
-    .tick-chip .del-chip:hover{opacity:1}
-    .add-chip-form{display:flex;gap:4px;align-items:center}
-    .chip-input{background:var(--surface);border:1px solid var(--line-2);border-radius:2px;color:var(--text);font-size:11px;font-family:"SF Mono",monospace;letter-spacing:0.08em;padding:4px 9px;width:140px;outline:none}
-    .chip-input::placeholder{color:var(--muted)}
-    .chip-input:focus{background:var(--surface-3)}
-    .chip-input-label{font-size:11px;color:var(--muted-2);white-space:nowrap}
-    .go-btn{padding:4px 9px;border-radius:2px;background:var(--surface-3);color:var(--muted-2);font-size:11px;border:1px solid var(--line-2);letter-spacing:0.06em}
-    .go-btn:hover{color:var(--white)}
+    .tick-chip .x{font-size:9px;opacity:.45;cursor:pointer;line-height:1;padding:0 1px}
+    .tick-chip .x:hover{opacity:1}
+    .chip-add{display:flex;gap:4px;align-items:center;flex-wrap:nowrap}
+    .chip-add input{background:var(--surface);border:1px solid var(--line-2);border-radius:2px;color:var(--text);font-size:11px;font-family:"SF Mono",monospace;letter-spacing:0.06em;padding:3px 7px;outline:none;width:130px}
+    .chip-add input:focus{background:var(--surface-3);border-color:var(--muted)}
+    .chip-add input::placeholder{color:var(--muted)}
+    .chip-add .name-input{width:72px}
+    .chip-add-btn{padding:3px 9px;border-radius:2px;background:var(--surface-3);color:var(--muted-2);font-size:11px;border:1px solid var(--line-2);cursor:pointer;white-space:nowrap}
+    .chip-add-btn:hover{color:var(--white);border-color:var(--muted-2)}
     .asset-actions{display:flex;gap:6px;flex-shrink:0}
+    .icon-btn{width:28px;height:28px;border-radius:var(--radius);background:var(--surface-3);border:1px solid var(--line-2);color:var(--muted-2);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+    .icon-btn:hover{color:var(--white);border-color:var(--muted-2)}
     .chart-container{background:var(--bg);border-bottom:1px solid var(--line)}
     .chart-frame{width:100%;height:340px;border:none;display:block}
     .table-scroll{overflow-x:auto}
@@ -142,12 +144,10 @@
       <button class="tb-btn primary" id="newRecordBtn">＋ 新建</button>
     </div>
   </div>
-
   <div class="statusbar">
     <span class="s-dot on" id="statusDot"></span>
     <span id="statusText">就绪</span>
   </div>
-
   <div class="record-list" id="recordList"></div>
 </div>
 
@@ -156,10 +156,24 @@ const COLS = ['phase','judgment','levels','strategy','invalidation'];
 const COL_LABELS = ['阶段','核心判断','关键位','交易思路','失效/转向条件'];
 const ROWS = 5;
 const GIST_FILENAME = 'market-review-data.json';
+const PRESET_KEY = { gold:'presets_gold', ashare:'presets_ashare' };
+const DEFAULT_PRESETS = {
+  gold:   [{label:'XAUUSD',sym:'OANDA:XAUUSD'},{label:'XAGUSD',sym:'OANDA:XAGUSD'},{label:'XCUUSD',sym:'XCUUSD'}],
+  ashare: [{label:'上证',sym:'SSE:000001'},{label:'科创50',sym:'SSE:000688'},{label:'紫金矿业',sym:'SSE:601899'},{label:'中国卫星',sym:'SSE:600118'},{label:'数据港',sym:'SSE:603881'},{label:'悚高集团',sym:'SSE:001221'}]
+};
 
 let allOpen = false;
 
-// ─── GIST SYNC ─────────────────────────────────────────────
+// ─── PRESETS ───────────────────────────────────────────
+function loadPresets(asset){
+  const raw = localStorage.getItem(PRESET_KEY[asset]);
+  return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_PRESETS[asset]));
+}
+function savePresets(asset, arr){
+  localStorage.setItem(PRESET_KEY[asset], JSON.stringify(arr));
+}
+
+// ─── GIST SYNC ───────────────────────────────────────────
 function getSyncCfg(){
   return { token: localStorage.getItem('sync_token')||'', gistId: localStorage.getItem('sync_gist_id')||'' };
 }
@@ -176,304 +190,379 @@ function gatherPayload(){
   return out;
 }
 async function pushToGist(){
-  const {token, gistId} = getSyncCfg();
+  const {token,gistId} = getSyncCfg();
   if(!token) return;
   setDot('syncing'); setStatusText('正在推送到 Gist...');
-  const body = JSON.stringify({ files:{ [GIST_FILENAME]:{ content: JSON.stringify(gatherPayload()) } }, description:'Market Review Data', public:false });
+  const body = JSON.stringify({files:{[GIST_FILENAME]:{content:JSON.stringify(gatherPayload())}},description:'Market Review Data',public:false});
   try{
-    let url = 'https://api.github.com/gists';
-    let method = 'POST';
-    if(gistId){ url += '/'+gistId; method = 'PATCH'; }
-    const res = await fetch(url, { method, headers:{ Authorization:'token '+token, 'Content-Type':'application/json' }, body });
+    let url='https://api.github.com/gists', method='POST';
+    if(gistId){url+='/'+gistId;method='PATCH';}
+    const res = await fetch(url,{method,headers:{Authorization:'token '+token,'Content-Type':'application/json'},body});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
-    if(!gistId){
-      localStorage.setItem('sync_gist_id', json.id);
-      document.getElementById('gistIdInput').value = json.id;
-    }
-    setDot('on'); setStatusText('✓ 已同步到 Gist · '+new Date().toLocaleString('zh-CN'));
-    updateBrandSub();
-  } catch(e){
-    setDot('error'); setStatusText('同步失败：'+e.message);
-  }
+    if(!gistId){ localStorage.setItem('sync_gist_id',json.id); document.getElementById('gistIdInput').value=json.id; }
+    setDot('on'); setStatusText('✓ 已同步到 Gist · '+new Date().toLocaleString('zh-CN')); updateBrandSub();
+  }catch(e){ setDot('error'); setStatusText('同步失败：'+e.message); }
 }
 async function pullFromGist(){
-  const {token, gistId} = getSyncCfg();
+  const {token,gistId} = getSyncCfg();
   if(!token||!gistId){ alert('请先配置 Token 和 Gist ID'); document.getElementById('syncModal').classList.add('show'); return; }
   setDot('syncing'); setStatusText('正在从 Gist 拉取数据...');
   try{
-    const res = await fetch('https://api.github.com/gists/'+gistId, { headers:{ Authorization:'token '+token } });
+    const res = await fetch('https://api.github.com/gists/'+gistId,{headers:{Authorization:'token '+token}});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
     const raw = json.files?.[GIST_FILENAME]?.content;
     if(!raw) throw new Error('Gist 中无数据文件');
     const data = JSON.parse(raw);
-    Object.keys(data).forEach(k=>localStorage.setItem(k, data[k]));
+    Object.keys(data).forEach(k=>localStorage.setItem(k,data[k]));
     setDot('on'); setStatusText('✓ 已从 Gist 拉取最新数据');
-    setTimeout(()=>{ setDot('on'); renderAll(); }, 800);
-  } catch(e){
-    setDot('error'); setStatusText('拉取失败：'+e.message);
-  }
+    setTimeout(()=>{setDot('on');renderAll();},800);
+  }catch(e){ setDot('error'); setStatusText('拉取失败：'+e.message); }
 }
-function setDot(state){
-  document.getElementById('statusDot').className = 's-dot'+(state?' '+state:'');
-}
-function setStatusText(msg){
-  document.getElementById('statusText').textContent = msg;
-}
+function setDot(state){ document.getElementById('statusDot').className='s-dot'+(state?' '+state:''); }
+function setStatusText(msg){ document.getElementById('statusText').textContent=msg; }
 function updateBrandSub(){
-  const {gistId} = getSyncCfg();
-  document.getElementById('brandSub').textContent = gistId
-    ? '黄金 · A股 · ☁ Gist 同步已启用'
-    : '黄金 · A股 · 本地存储';
+  const {gistId}=getSyncCfg();
+  document.getElementById('brandSub').textContent=gistId?'黄金 · A股 · ☁ Gist 同步已启用':'黄金 · A股 · 本地存储';
 }
-// ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────
 
 function getTodayKey(){
-  const d = new Date();
+  const d=new Date();
   return `journal_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function getDateFromKey(k){ return k.replace('journal_',''); }
 
 function loadAll(){
-  const keys = Object.keys(localStorage).filter(k=>k.startsWith('journal_')).sort().reverse();
-  return keys.map(k=>{
-    try{ return {key:k, data:JSON.parse(localStorage.getItem(k))}; }
-    catch(e){ return null; }
-  }).filter(Boolean);
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('journal_')).sort().reverse();
+  return keys.map(k=>{ try{return{key:k,data:JSON.parse(localStorage.getItem(k))}}catch(e){return null;} }).filter(Boolean);
 }
 
-function saveRecord(key, data){
-  if(!data.meta) data.meta = {};
-  data.meta.updatedAt = new Date().toLocaleString('zh-CN');
-  localStorage.setItem(key, JSON.stringify(data));
-  setDot('on');
-  setStatusText('已保存 · '+data.meta.updatedAt);
-  setTimeout(()=>pushToGist(), 2500);
+function saveRecord(key,data){
+  if(!data.meta) data.meta={};
+  data.meta.updatedAt=new Date().toLocaleString('zh-CN');
+  localStorage.setItem(key,JSON.stringify(data));
+  setDot('on'); setStatusText('已保存 · '+data.meta.updatedAt);
+  setTimeout(()=>pushToGist(),2500);
 }
 
 function newEmptyData(date){
-  const emptyRows = Array(ROWS).fill(null).map(()=>({phase:'',judgment:'',levels:'',strategy:'',invalidation:''}));
-  return {date, gold:[...emptyRows.map(r=>({...r}))], ashare:[...emptyRows.map(r=>({...r}))], goldSym:'OANDA:XAUUSD', ashareSym:'SSE:000001'};
+  const emptyRows=Array(ROWS).fill(null).map(()=>({phase:'',judgment:'',levels:'',strategy:'',invalidation:''}));
+  return {date,gold:[...emptyRows.map(r=>({...r}))],ashare:[...emptyRows.map(r=>({...r}))],goldSym:'OANDA:XAUUSD',ashareSym:'SSE:000001'};
 }
 
 function buildChartUrl(sym){
-  return `https://s.tradingview.com/widgetembed/?frameElementId=tv_chart_widget&symbol=${encodeURIComponent(sym)}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FShanghai&withdateranges=1&showpopupbutton=1&locale=zh_CN`;
+  return `https://s.tradingview.com/widgetembed/?frameElementId=tv_chart_widget&symbol=${encodeURIComponent(sym)}&interval=240&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FShanghai&withdateranges=1&showpopupbutton=1&locale=zh_CN`;
 }
 
+// ─── TICKER BAR ───────────────────────────────────────────
+// 构建全局共用的 chip 条，返回 DOM元素
+// onSelect(sym): 点击 chip 时回调
+function buildTickerBar(asset, activeSym, onSelect){
+  const wrap = document.createElement('div');
+  wrap.className = 'ticker-bar';
+
+  function render(){
+    wrap.innerHTML = '';
+    const presets = loadPresets(asset);
+
+    presets.forEach((p, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'tick-chip' + (p.sym===activeSym?' active':'');
+
+      const label = document.createTextNode(p.label);
+      chip.appendChild(label);
+
+      const x = document.createElement('span');
+      x.className = 'x'; x.textContent = '×'; x.title = '删除';
+      x.addEventListener('click', e=>{
+        e.stopPropagation();
+        if(!confirm(`删除标的「${p.label}」？`)) return;
+        const arr = loadPresets(asset);
+        arr.splice(idx,1);
+        savePresets(asset,arr);
+        // 重渲染所有记录的该资产 ticker bar
+        document.querySelectorAll(`.ticker-bar[data-asset="${asset}"]`).forEach(b=>{
+          const rec = b.closest('details');
+          const recKey = rec ? rec.id.replace('rec_','') : null;
+          const curSym = recKey ? (asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym) : activeSym;
+          rebuildBar(b, asset, curSym||activeSym, b._onSelect);
+        });
+      });
+      chip.appendChild(x);
+
+      chip.addEventListener('click', ()=>{
+        activeSym = p.sym;
+        onSelect(p.sym);
+        // 刷新当前 bar 的 active 状态
+        wrap.querySelectorAll('.tick-chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+      wrap.appendChild(chip);
+    });
+
+    // 添加表单
+    const form = document.createElement('div');
+    form.className = 'chip-add';
+    form.innerHTML = `
+      <input class="sym-input" placeholder="代码，如 SZSE:399006" />
+      <input class="name-input" placeholder="名称" />
+      <button class="chip-add-btn">添加</button>`;
+    const [symIn, nameIn, addBtn] = [form.querySelector('.sym-input'), form.querySelector('.name-input'), form.querySelector('.chip-add-btn')];
+
+    const doAdd = ()=>{
+      const sym  = symIn.value.trim().toUpperCase();
+      const name = nameIn.value.trim() || sym;
+      if(!sym) return;
+      const arr = loadPresets(asset);
+      if(arr.find(p=>p.sym===sym)){
+        // 已存在，直接切换
+        activeSym=sym; onSelect(sym);
+        wrap.querySelectorAll('.tick-chip').forEach(c=>c.classList.remove('active'));
+        const found = [...wrap.querySelectorAll('.tick-chip')].find(c=>c.textContent.replace('×','').trim()===name);
+        if(found) found.classList.add('active');
+        symIn.value=''; nameIn.value=''; return;
+      }
+      arr.push({label:name,sym});
+      savePresets(asset,arr);
+      activeSym=sym; onSelect(sym);
+      symIn.value=''; nameIn.value='';
+      render();
+      // 同步到其他记录的该资产 bar
+      document.querySelectorAll(`.ticker-bar[data-asset="${asset}"]`).forEach(b=>{
+        if(b===wrap) return;
+        const rec = b.closest('details');
+        const recKey = rec ? rec.id.replace('rec_','') : null;
+        const curSym = recKey ? (asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym) : activeSym;
+        rebuildBar(b, asset, curSym||activeSym, b._onSelect);
+      });
+    };
+    addBtn.addEventListener('click', doAdd);
+    symIn.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
+    nameIn.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
+    wrap.appendChild(form);
+  }
+
+  render();
+  wrap.dataset.asset = asset;
+  wrap._onSelect = onSelect;
+  return wrap;
+}
+
+function rebuildBar(wrapEl, asset, activeSym, onSelect){
+  wrapEl._onSelect = onSelect;
+  const newBar = buildTickerBar(asset, activeSym, onSelect);
+  wrapEl.innerHTML = newBar.innerHTML;
+  // 重新绑定事件（因为 innerHTML 替换了）—— 简化：直接用 replaceWith
+  newBar.dataset.asset = asset;
+  newBar._onSelect = onSelect;
+  wrapEl.replaceWith(newBar);
+}
+// ─────────────────────────────────────────────────────────
+
 function buildTable(rows, dateKey, assetKey){
-  const thead = `<thead><tr>${COL_LABELS.map(l=>`<th>${l}</th>`).join('')}</tr></thead>`;
-  const tbodyRows = rows.map((row,ri)=>`
-    <tr>
-      ${COLS.map(col=>`<td class="${col==='phase'?'phase':col==='levels'?'level':col==='invalidation'?'invalid':''}" contenteditable="true" data-asset="${assetKey}" data-row="${ri}" data-col="${col}">${row[col]||''}</td>`).join('')}
-    </tr>
-  `).join('');
+  const thead=`<thead><tr>${COL_LABELS.map(l=>`<th>${l}</th>`).join('')}</tr></thead>`;
+  const tbodyRows=rows.map((row,ri)=>`<tr>${COLS.map(col=>`<td class="${col==='phase'?'phase':col==='levels'?'level':col==='invalidation'?'invalid':''}" contenteditable="true" data-asset="${assetKey}" data-row="${ri}" data-col="${col}">${row[col]||''}</td>`).join('')}</tr>`).join('');
   return `<div class="table-scroll"><table>${thead}<tbody>${tbodyRows}</tbody></table></div>`;
 }
 
-function buildAssetBlock(data, dateKey, assetKey, label){
-  const sym = assetKey==='gold' ? data.goldSym : data.ashareSym;
-  const symInputId = `sym_${dateKey}_${assetKey}`;
-  const chartId = `chart_${dateKey}_${assetKey}`;
-  return `
-  <div class="asset-block">
-    <div class="asset-header">
-      <div class="asset-meta">
-        <span class="asset-label">${label}</span>
-        <span class="asset-name">${label==='黄金'?'GOLD':'A股'}</span>
-      </div>
-      <div class="ticker-bar">
-        <span class="chip-input-label">品种代码：</span>
-        <input class="chip-input" id="${symInputId}" value="${sym}" placeholder="如 OANDA:XAUUSD" />
-        <button class="go-btn" onclick="updateChart('${dateKey}','${assetKey}','${symInputId}','${chartId}')">载入图表</button>
-      </div>
-    </div>
-    <div class="chart-container">
-      <iframe class="chart-frame" id="${chartId}" src="${buildChartUrl(sym)}"></iframe>
-    </div>
-    ${buildTable(data[assetKey], dateKey, assetKey)}
-  </div>`;
-}
-
-function updateChart(dateKey, assetKey, symInputId, chartId){
-  const sym = document.getElementById(symInputId).value.trim();
-  if(!sym) return;
-  const data = JSON.parse(localStorage.getItem(dateKey)||'{}');
-  if(assetKey==='gold') data.goldSym = sym; else data.ashareSym = sym;
-  saveRecord(dateKey, data);
-  document.getElementById(chartId).src = buildChartUrl(sym);
-}
-
 function buildRecord(entry){
-  const {key, data} = entry;
+  const {key,data} = entry;
   const dateStr = getDateFromKey(key);
-  const updatedAt = data.meta && data.meta.updatedAt ? data.meta.updatedAt : '';
-  return `
-  <details class="record" id="rec_${key}">
+  const updatedAt = data.meta&&data.meta.updatedAt?data.meta.updatedAt:'';
+  const goldSym   = data.goldSym   || 'OANDA:XAUUSD';
+  const ashareSym = data.ashareSym || 'SSE:000001';
+  const goldFrameId   = `gf_${key.replace(/-/g,'_')}`;
+  const ashareFrameId = `af_${key.replace(/-/g,'_')}`;
+
+  const details = document.createElement('details');
+  details.className = 'record';
+  details.id = 'rec_'+key;
+  details.innerHTML = `
     <summary>
       <div class="sum-left">
         <span class="date-label">${dateStr}</span>
         <span class="date-sub">${updatedAt}</span>
       </div>
-      <div class="sum-right">
-        <span class="chevron">▼</span>
-      </div>
+      <div class="sum-right"><span class="chevron">▼</span></div>
     </summary>
     <div class="record-body">
-      ${buildAssetBlock(data, key, 'gold', '黄金')}
-      ${buildAssetBlock(data, key, 'ashare', 'A股')}
-    </div>
-  </details>`;
+      <div class="asset-block" id="ab_gold_${key}">
+        <div class="asset-header">
+          <div class="asset-meta">
+            <div>
+              <div class="asset-label">Precious Metal</div>
+              <div class="asset-name">黄金</div>
+            </div>
+            <div class="gold-ticker-slot"></div>
+          </div>
+        </div>
+        <div class="chart-container"><iframe class="chart-frame" id="${goldFrameId}" src="${buildChartUrl(goldSym)}"></iframe></div>
+        ${buildTable(data.gold, key, 'gold')}
+      </div>
+      <div class="asset-block" id="ab_ashare_${key}">
+        <div class="asset-header">
+          <div class="asset-meta">
+            <div>
+              <div class="asset-label">China Equity</div>
+              <div class="asset-name">A 股</div>
+            </div>
+            <div class="ashare-ticker-slot"></div>
+          </div>
+        </div>
+        <div class="chart-container"><iframe class="chart-frame" id="${ashareFrameId}" src="${buildChartUrl(ashareSym)}"></iframe></div>
+        ${buildTable(data.ashare, key, 'ashare')}
+      </div>
+    </div>`;
+
+  // 注入 ticker bar
+  let curGoldSym   = goldSym;
+  let curAshareSym = ashareSym;
+
+  const goldBar = buildTickerBar('gold', curGoldSym, sym=>{
+    curGoldSym = sym;
+    document.getElementById(goldFrameId).src = buildChartUrl(sym);
+    const d = JSON.parse(localStorage.getItem(key)||'{}');
+    d.goldSym = sym; saveRecord(key, d);
+    details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+  });
+  const ashareBar = buildTickerBar('ashare', curAshareSym, sym=>{
+    curAshareSym = sym;
+    document.getElementById(ashareFrameId).src = buildChartUrl(sym);
+    const d = JSON.parse(localStorage.getItem(key)||'{}');
+    d.ashareSym = sym; saveRecord(key, d);
+    details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+  });
+
+  details.querySelector('.gold-ticker-slot').replaceWith(goldBar);
+  details.querySelector('.ashare-ticker-slot').replaceWith(ashareBar);
+
+  // 表格编辑
+  details.querySelectorAll('td[contenteditable]').forEach(td=>{
+    td.addEventListener('blur', ()=>{
+      const d = JSON.parse(localStorage.getItem(key)||'{}');
+      const asset = td.dataset.asset, ri = +td.dataset.row, col = td.dataset.col;
+      if(!d[asset]) return;
+      d[asset][ri][col] = td.innerText.trim();
+      saveRecord(key, d);
+      details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+    });
+  });
+
+  return details;
 }
 
 function renderAll(){
   const entries = loadAll();
   const list = document.getElementById('recordList');
-  list.innerHTML = entries.map(buildRecord).join('');
-  attachEditors();
-}
-
-function attachEditors(){
-  document.querySelectorAll('td[contenteditable]').forEach(td=>{
-    td.addEventListener('blur', ()=>{
-      const recKey = td.closest('details').id.replace('rec_','');
-      const asset = td.dataset.asset;
-      const ri = +td.dataset.row;
-      const col = td.dataset.col;
-      const data = JSON.parse(localStorage.getItem(recKey)||'{}');
-      if(!data[asset]) return;
-      data[asset][ri][col] = td.innerText.trim();
-      saveRecord(recKey, data);
-    });
+  list.innerHTML = '';
+  entries.forEach((e,i)=>{
+    const el = buildRecord(e);
+    if(i===0) el.open = true;
+    list.appendChild(el);
   });
 }
 
-// 新建按鈕 — 修复版
-// 逻辑：
-// 1. 如果今天记录不存在，直接创建今天的记录
-// 2. 如果今天已存在，弹对话框请求输入其他日期
-// 3. 创建成功后重新渲染并自动展开定位到新记录
+// 新建按鈕
 document.getElementById('newRecordBtn').addEventListener('click',()=>{
   const todayKey = getTodayKey();
   let targetKey;
-
   if(!localStorage.getItem(todayKey)){
-    // 今天记录不存在，直接创建
     targetKey = todayKey;
   } else {
-    // 今天已存在，请求输入其他日期
     const input = prompt('今日复盘已存在，请输入其他日期（YYYY-MM-DD）：', getDateFromKey(todayKey));
-    if(!input) return; // 取消
+    if(!input) return;
     const date = input.trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('日期格式不正确，请使用 YYYY-MM-DD 格式'); return; }
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('日期格式不正确'); return; }
     targetKey = 'journal_'+date;
-    if(localStorage.getItem(targetKey)){ alert('该日期已存在，请直接展开查看'); return; }
+    if(localStorage.getItem(targetKey)){ alert('该日期已存在'); return; }
   }
-
-  // 创建并保存
   const date = getDateFromKey(targetKey);
   saveRecord(targetKey, newEmptyData(date));
-
-  // 重新渲染列表并展开定位到新记录
   renderAll();
   const el = document.getElementById('rec_'+targetKey);
-  if(el){ el.open = true; el.scrollIntoView({behavior:'smooth', block:'start'}); }
+  if(el){ el.open=true; el.scrollIntoView({behavior:'smooth',block:'start'}); }
 });
 
 document.getElementById('toggleAllBtn').addEventListener('click',()=>{
-  allOpen = !allOpen;
+  allOpen=!allOpen;
   document.querySelectorAll('details.record').forEach(d=>d.open=allOpen);
-  document.getElementById('toggleAllBtn').textContent = allOpen?'折叠':'展开';
+  document.getElementById('toggleAllBtn').textContent=allOpen?'折叠':'展开';
 });
-
 document.getElementById('themeBtn').addEventListener('click',()=>{
-  const html = document.documentElement;
-  const cur = html.getAttribute('data-theme');
-  html.setAttribute('data-theme', cur==='light'?'dark':'light');
+  const html=document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme')==='light'?'dark':'light');
   localStorage.setItem('theme', html.getAttribute('data-theme'));
 });
-
-// SYNC MODAL
 document.getElementById('syncBtn').addEventListener('click',()=>{
-  const {token, gistId} = getSyncCfg();
-  document.getElementById('tokenInput').value = token;
-  document.getElementById('gistIdInput').value = gistId;
+  const {token,gistId}=getSyncCfg();
+  document.getElementById('tokenInput').value=token;
+  document.getElementById('gistIdInput').value=gistId;
   document.getElementById('syncModal').classList.add('show');
 });
-document.getElementById('cancelSyncBtn').addEventListener('click',()=>{
-  document.getElementById('syncModal').classList.remove('show');
-});
-document.getElementById('saveSyncBtn').addEventListener('click', async ()=>{
-  const token  = document.getElementById('tokenInput').value.trim();
-  const gistId = document.getElementById('gistIdInput').value.trim();
-  if(!token){ alert('请输入 Token'); return; }
-  setSyncCfg(token, gistId);
-  document.getElementById('syncModal').classList.remove('show');
-  updateBrandSub();
-  await pushToGist();
+document.getElementById('cancelSyncBtn').addEventListener('click',()=>document.getElementById('syncModal').classList.remove('show'));
+document.getElementById('saveSyncBtn').addEventListener('click',async()=>{
+  const token=document.getElementById('tokenInput').value.trim();
+  const gistId=document.getElementById('gistIdInput').value.trim();
+  if(!token){alert('请输入 Token');return;}
+  setSyncCfg(token,gistId); document.getElementById('syncModal').classList.remove('show');
+  updateBrandSub(); await pushToGist();
 });
 document.getElementById('clearSyncBtn').addEventListener('click',()=>{
-  if(!confirm('清除同步配置？不会删除本地数据。')) return;
+  if(!confirm('清除同步配置？')) return;
   localStorage.removeItem('sync_token'); localStorage.removeItem('sync_gist_id');
-  document.getElementById('tokenInput').value = ''; document.getElementById('gistIdInput').value = '';
-  document.getElementById('syncModal').classList.remove('show');
-  updateBrandSub();
+  document.getElementById('tokenInput').value=''; document.getElementById('gistIdInput').value='';
+  document.getElementById('syncModal').classList.remove('show'); updateBrandSub();
 });
-document.getElementById('pullBtn').addEventListener('click', pullFromGist);
-
+document.getElementById('pullBtn').addEventListener('click',pullFromGist);
 document.getElementById('archiveBtn').addEventListener('click',()=>{
-  const entries = loadAll();
-  const blob = new Blob([JSON.stringify(entries.map(e=>e.data),null,2)],{type:'application/json'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download = 'market_review_archive_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
+  const entries=loadAll();
+  const blob=new Blob([JSON.stringify(entries.map(e=>e.data),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='market_review_archive_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
 });
-
 document.getElementById('exportCsvBtn').addEventListener('click',()=>{
-  const entries = loadAll();
-  const rows = [['日期','资产','阶段','核心判断','关键位','交易思路','失效转向条件']];
+  const entries=loadAll();
+  const rows=[['日期','资产','阶段','核心判断','关键位','交易思路','失效转向条件']];
   entries.forEach(({data})=>{
     ['gold','ashare'].forEach(asset=>{
       (data[asset]||[]).forEach(r=>{
         if(Object.values(r).some(v=>v))
-          rows.push([data.date, asset==='gold'?'黄金':'A股', r.phase, r.judgment, r.levels, r.strategy, r.invalidation]);
+          rows.push([data.date,asset==='gold'?'黄金':'A股',r.phase,r.judgment,r.levels,r.strategy,r.invalidation]);
       });
     });
   });
-  const csv = rows.map(r=>r.map(c=>'"'+(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
-  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download = 'market_review_'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
+  const csv=rows.map(r=>r.map(c=>'"'+(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='market_review_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
 });
-
-document.getElementById('importCsvFile').addEventListener('change', e=>{
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    const lines = ev.target.result.split('\n').slice(1);
-    const grouped = {};
+document.getElementById('importCsvFile').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const lines=ev.target.result.split('\n').slice(1);
+    const grouped={};
     lines.forEach(line=>{
-      const cols = line.match(/"([^"]*)"/g);
+      const cols=line.match(/"([^"]*)"/g);
       if(!cols||cols.length<7) return;
-      const [date,asset,phase,judgment,levels,strategy,invalidation] = cols.map(c=>c.replace(/"/g,''));
-      const key = 'journal_'+date;
-      if(!grouped[key]){ grouped[key] = newEmptyData(date); }
-      const assetKey = asset==='黄金'?'gold':'ashare';
-      const emptyIdx = grouped[key][assetKey].findIndex(r=>!r.phase&&!r.judgment&&!r.levels&&!r.strategy&&!r.invalidation);
-      if(emptyIdx>=0) grouped[key][assetKey][emptyIdx] = {phase,judgment,levels,strategy,invalidation};
+      const [date,asset,phase,judgment,levels,strategy,invalidation]=cols.map(c=>c.replace(/"/g,''));
+      const key='journal_'+date;
+      if(!grouped[key]) grouped[key]=newEmptyData(date);
+      const assetKey=asset==='黄金'?'gold':'ashare';
+      const emptyIdx=grouped[key][assetKey].findIndex(r=>!r.phase&&!r.judgment&&!r.levels&&!r.strategy&&!r.invalidation);
+      if(emptyIdx>=0) grouped[key][assetKey][emptyIdx]={phase,judgment,levels,strategy,invalidation};
       else grouped[key][assetKey].push({phase,judgment,levels,strategy,invalidation});
     });
     Object.entries(grouped).forEach(([k,d])=>saveRecord(k,d));
-    renderAll();
-    setStatusText('CSV导入完成'); setDot('on');
+    renderAll(); setStatusText('CSV导入完成'); setDot('on');
   };
   reader.readAsText(file,'utf-8');
 });
 
-const savedTheme = localStorage.getItem('theme')||'dark';
-document.documentElement.setAttribute('data-theme', savedTheme);
-
+const savedTheme=localStorage.getItem('theme')||'dark';
+document.documentElement.setAttribute('data-theme',savedTheme);
 updateBrandSub();
 renderAll();
 setStatusText('就绪 · 数据存储在浏览器本地'); setDot('on');
