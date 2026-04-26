@@ -29,7 +29,6 @@
     .s-dot.error{background:#e05555;box-shadow:0 0 6px #e05555}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
     .statusbar{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:9px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);font-size:11px;color:var(--muted-2);letter-spacing:0.05em;text-transform:uppercase}
-    /* SYNC MODAL */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center}
     .modal-overlay.show{display:flex}
     .modal{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius-lg);padding:28px 32px;width:min(480px,92vw);display:flex;flex-direction:column;gap:18px}
@@ -160,7 +159,7 @@ const GIST_FILENAME = 'market-review-data.json';
 
 let allOpen = false;
 
-// ─── GIST SYNC ───────────────────────────────────────────────
+// ─── GIST SYNC ─────────────────────────────────────────────
 function getSyncCfg(){
   return { token: localStorage.getItem('sync_token')||'', gistId: localStorage.getItem('sync_gist_id')||'' };
 }
@@ -193,7 +192,6 @@ async function pushToGist(){
       document.getElementById('gistIdInput').value = json.id;
     }
     setDot('on'); setStatusText('✓ 已同步到 Gist · '+new Date().toLocaleString('zh-CN'));
-    setTimeout(()=>setDot('on'), 3000);
     updateBrandSub();
   } catch(e){
     setDot('error'); setStatusText('同步失败：'+e.message);
@@ -218,8 +216,7 @@ async function pullFromGist(){
   }
 }
 function setDot(state){
-  const dot = document.getElementById('statusDot');
-  dot.className = 's-dot'+(state?' '+state:'');
+  document.getElementById('statusDot').className = 's-dot'+(state?' '+state:'');
 }
 function setStatusText(msg){
   document.getElementById('statusText').textContent = msg;
@@ -230,7 +227,7 @@ function updateBrandSub(){
     ? '黄金 · A股 · ☁ Gist 同步已启用'
     : '黄金 · A股 · 本地存储';
 }
-// ─────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
 
 function getTodayKey(){
   const d = new Date();
@@ -351,6 +348,51 @@ function attachEditors(){
   });
 }
 
+// 新建按鈕 — 修复版
+// 逻辑：
+// 1. 如果今天记录不存在，直接创建今天的记录
+// 2. 如果今天已存在，弹对话框请求输入其他日期
+// 3. 创建成功后重新渲染并自动展开定位到新记录
+document.getElementById('newRecordBtn').addEventListener('click',()=>{
+  const todayKey = getTodayKey();
+  let targetKey;
+
+  if(!localStorage.getItem(todayKey)){
+    // 今天记录不存在，直接创建
+    targetKey = todayKey;
+  } else {
+    // 今天已存在，请求输入其他日期
+    const input = prompt('今日复盘已存在，请输入其他日期（YYYY-MM-DD）：', getDateFromKey(todayKey));
+    if(!input) return; // 取消
+    const date = input.trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('日期格式不正确，请使用 YYYY-MM-DD 格式'); return; }
+    targetKey = 'journal_'+date;
+    if(localStorage.getItem(targetKey)){ alert('该日期已存在，请直接展开查看'); return; }
+  }
+
+  // 创建并保存
+  const date = getDateFromKey(targetKey);
+  saveRecord(targetKey, newEmptyData(date));
+
+  // 重新渲染列表并展开定位到新记录
+  renderAll();
+  const el = document.getElementById('rec_'+targetKey);
+  if(el){ el.open = true; el.scrollIntoView({behavior:'smooth', block:'start'}); }
+});
+
+document.getElementById('toggleAllBtn').addEventListener('click',()=>{
+  allOpen = !allOpen;
+  document.querySelectorAll('details.record').forEach(d=>d.open=allOpen);
+  document.getElementById('toggleAllBtn').textContent = allOpen?'折叠':'展开';
+});
+
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  const html = document.documentElement;
+  const cur = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', cur==='light'?'dark':'light');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+});
+
 // SYNC MODAL
 document.getElementById('syncBtn').addEventListener('click',()=>{
   const {token, gistId} = getSyncCfg();
@@ -378,30 +420,6 @@ document.getElementById('clearSyncBtn').addEventListener('click',()=>{
   updateBrandSub();
 });
 document.getElementById('pullBtn').addEventListener('click', pullFromGist);
-
-document.getElementById('newRecordBtn').addEventListener('click',()=>{
-  const key = getTodayKey();
-  if(!localStorage.getItem(key)){
-    const d = getDateFromKey(key);
-    saveRecord(key, newEmptyData(d));
-  }
-  renderAll();
-  const el = document.getElementById('rec_'+key);
-  if(el){ el.open = true; el.scrollIntoView({behavior:'smooth'}); }
-});
-
-document.getElementById('toggleAllBtn').addEventListener('click',()=>{
-  allOpen = !allOpen;
-  document.querySelectorAll('details.record').forEach(d=>d.open=allOpen);
-  document.getElementById('toggleAllBtn').textContent = allOpen?'折叠':'展开';
-});
-
-document.getElementById('themeBtn').addEventListener('click',()=>{
-  const html = document.documentElement;
-  const cur = html.getAttribute('data-theme');
-  html.setAttribute('data-theme', cur==='light'?'dark':'light');
-  localStorage.setItem('theme', html.getAttribute('data-theme'));
-});
 
 document.getElementById('archiveBtn').addEventListener('click',()=>{
   const entries = loadAll();
