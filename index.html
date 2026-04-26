@@ -23,9 +23,30 @@
     .tb-btn.primary:hover{opacity:.85}
     [data-theme="light"] .tb-btn.primary{background:#111;color:#fff;border-color:#111}
     .tb-btn.danger:hover{border-color:#c0392b;color:#c0392b}
-    .statusbar{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:9px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);font-size:11px;color:var(--muted-2);letter-spacing:0.05em;text-transform:uppercase}
     .s-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0}
     .s-dot.on{background:#5cdb5c;box-shadow:0 0 6px #5cdb5c}
+    .s-dot.syncing{background:#f0c040;box-shadow:0 0 6px #f0c040;animation:pulse 1s infinite}
+    .s-dot.error{background:#e05555;box-shadow:0 0 6px #e05555}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .statusbar{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:9px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);font-size:11px;color:var(--muted-2);letter-spacing:0.05em;text-transform:uppercase}
+    /* SYNC MODAL */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .modal{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--radius-lg);padding:28px 32px;width:min(480px,92vw);display:flex;flex-direction:column;gap:18px}
+    .modal h2{font-size:17px;font-weight:700;color:var(--white)}
+    [data-theme="light"] .modal h2{color:#111}
+    .modal p{font-size:12px;color:var(--muted-2);line-height:1.7}
+    .modal label{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted-2)}
+    .modal input{width:100%;margin-top:6px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--radius);color:var(--text);font-size:13px;font-family:"SF Mono",monospace;padding:9px 12px;outline:none}
+    .modal input:focus{border-color:var(--muted-2)}
+    .modal-btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+    .modal-btns button{padding:8px 18px;border-radius:var(--radius);font-size:12px;font-weight:600;letter-spacing:0.06em}
+    .btn-cancel{background:var(--surface-2);color:var(--muted-2);border:1px solid var(--line-2)}
+    .btn-save{background:var(--white);color:var(--bg)}
+    [data-theme="light"] .btn-save{background:#111;color:#fff}
+    .btn-clear{background:transparent;color:#e05555;border:1px solid rgba(224,85,85,.3);margin-right:auto}
+    .modal a{color:var(--muted-2);font-size:11px}
+    .modal a:hover{color:var(--white)}
     .record-list{display:flex;flex-direction:column;gap:2px}
     details.record{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
     details.record[open]{border-color:var(--line-2);margin-bottom:8px}
@@ -81,15 +102,40 @@
 </head>
 <body>
 
+<!-- SYNC MODAL -->
+<div class="modal-overlay" id="syncModal">
+  <div class="modal">
+    <h2>☁️ Gist 跨设备同步设置</h2>
+    <p>使用 GitHub Gist 免费同步数据。你的复盘记录会保存在一个私密 Gist 中，手机和电脑访问同一网址即可自动同步。</p>
+    <p>🔑 需要 GitHub Personal Access Token（只需勾选 <strong>gist</strong> 权限）<br>
+    <a href="https://github.com/settings/tokens/new?scopes=gist&description=MarketReviewSync" target="_blank">→ 点此一键生成 Token</a></p>
+    <div>
+      <label>GitHub Token</label>
+      <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+    </div>
+    <div>
+      <label>Gist ID（首次留空，保存后自动生成）</label>
+      <input type="text" id="gistIdInput" placeholder="留空则自动创建新 Gist" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-clear" id="clearSyncBtn">清除配置</button>
+      <button class="btn-cancel" id="cancelSyncBtn">取消</button>
+      <button class="btn-save" id="saveSyncBtn">保存并同步</button>
+    </div>
+  </div>
+</div>
+
 <button class="theme-toggle" id="themeBtn" title="切换亮/暗色">◑</button>
 
 <div class="wrap">
   <div class="topbar">
     <div>
       <div class="brand">Market Review</div>
-      <div class="brand-sub">黄金 · A股 · 云端同步</div>
+      <div class="brand-sub" id="brandSub">黄金 · A股 · 本地存储</div>
     </div>
     <div class="topbar-right">
+      <button class="tb-btn" id="syncBtn">☁ 同步</button>
+      <button class="tb-btn" id="pullBtn">↻ 拉取</button>
       <button class="tb-btn" id="toggleAllBtn">展开</button>
       <button class="tb-btn" id="archiveBtn">归档</button>
       <button class="tb-btn" id="exportCsvBtn">导出CSV</button>
@@ -110,14 +156,86 @@
 const COLS = ['phase','judgment','levels','strategy','invalidation'];
 const COL_LABELS = ['阶段','核心判断','关键位','交易思路','失效/转向条件'];
 const ROWS = 5;
+const GIST_FILENAME = 'market-review-data.json';
 
 let allOpen = false;
+
+// ─── GIST SYNC ───────────────────────────────────────────────
+function getSyncCfg(){
+  return { token: localStorage.getItem('sync_token')||'', gistId: localStorage.getItem('sync_gist_id')||'' };
+}
+function setSyncCfg(token, gistId){
+  localStorage.setItem('sync_token', token);
+  if(gistId) localStorage.setItem('sync_gist_id', gistId);
+}
+function gatherPayload(){
+  const out = {};
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k.startsWith('journal_')||k.startsWith('presets_')) out[k] = localStorage.getItem(k);
+  }
+  return out;
+}
+async function pushToGist(){
+  const {token, gistId} = getSyncCfg();
+  if(!token) return;
+  setDot('syncing'); setStatusText('正在推送到 Gist...');
+  const body = JSON.stringify({ files:{ [GIST_FILENAME]:{ content: JSON.stringify(gatherPayload()) } }, description:'Market Review Data', public:false });
+  try{
+    let url = 'https://api.github.com/gists';
+    let method = 'POST';
+    if(gistId){ url += '/'+gistId; method = 'PATCH'; }
+    const res = await fetch(url, { method, headers:{ Authorization:'token '+token, 'Content-Type':'application/json' }, body });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    if(!gistId){
+      localStorage.setItem('sync_gist_id', json.id);
+      document.getElementById('gistIdInput').value = json.id;
+    }
+    setDot('on'); setStatusText('✓ 已同步到 Gist · '+new Date().toLocaleString('zh-CN'));
+    setTimeout(()=>setDot('on'), 3000);
+    updateBrandSub();
+  } catch(e){
+    setDot('error'); setStatusText('同步失败：'+e.message);
+  }
+}
+async function pullFromGist(){
+  const {token, gistId} = getSyncCfg();
+  if(!token||!gistId){ alert('请先配置 Token 和 Gist ID'); document.getElementById('syncModal').classList.add('show'); return; }
+  setDot('syncing'); setStatusText('正在从 Gist 拉取数据...');
+  try{
+    const res = await fetch('https://api.github.com/gists/'+gistId, { headers:{ Authorization:'token '+token } });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    const raw = json.files?.[GIST_FILENAME]?.content;
+    if(!raw) throw new Error('Gist 中无数据文件');
+    const data = JSON.parse(raw);
+    Object.keys(data).forEach(k=>localStorage.setItem(k, data[k]));
+    setDot('on'); setStatusText('✓ 已从 Gist 拉取最新数据');
+    setTimeout(()=>{ setDot('on'); renderAll(); }, 800);
+  } catch(e){
+    setDot('error'); setStatusText('拉取失败：'+e.message);
+  }
+}
+function setDot(state){
+  const dot = document.getElementById('statusDot');
+  dot.className = 's-dot'+(state?' '+state:'');
+}
+function setStatusText(msg){
+  document.getElementById('statusText').textContent = msg;
+}
+function updateBrandSub(){
+  const {gistId} = getSyncCfg();
+  document.getElementById('brandSub').textContent = gistId
+    ? '黄金 · A股 · ☁ Gist 同步已启用'
+    : '黄金 · A股 · 本地存储';
+}
+// ─────────────────────────────────────────────────────────────
 
 function getTodayKey(){
   const d = new Date();
   return `journal_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
 function getDateFromKey(k){ return k.replace('journal_',''); }
 
 function loadAll(){
@@ -132,17 +250,14 @@ function saveRecord(key, data){
   if(!data.meta) data.meta = {};
   data.meta.updatedAt = new Date().toLocaleString('zh-CN');
   localStorage.setItem(key, JSON.stringify(data));
-  setStatus('已保存 · '+data.meta.updatedAt, true);
+  setDot('on');
+  setStatusText('已保存 · '+data.meta.updatedAt);
+  setTimeout(()=>pushToGist(), 2500);
 }
 
 function newEmptyData(date){
   const emptyRows = Array(ROWS).fill(null).map(()=>({phase:'',judgment:'',levels:'',strategy:'',invalidation:''}));
   return {date, gold:[...emptyRows.map(r=>({...r}))], ashare:[...emptyRows.map(r=>({...r}))], goldSym:'OANDA:XAUUSD', ashareSym:'SSE:000001'};
-}
-
-function setStatus(msg, ok){
-  document.getElementById('statusText').textContent = msg;
-  document.getElementById('statusDot').classList.toggle('on', !!ok);
 }
 
 function buildChartUrl(sym){
@@ -236,6 +351,34 @@ function attachEditors(){
   });
 }
 
+// SYNC MODAL
+document.getElementById('syncBtn').addEventListener('click',()=>{
+  const {token, gistId} = getSyncCfg();
+  document.getElementById('tokenInput').value = token;
+  document.getElementById('gistIdInput').value = gistId;
+  document.getElementById('syncModal').classList.add('show');
+});
+document.getElementById('cancelSyncBtn').addEventListener('click',()=>{
+  document.getElementById('syncModal').classList.remove('show');
+});
+document.getElementById('saveSyncBtn').addEventListener('click', async ()=>{
+  const token  = document.getElementById('tokenInput').value.trim();
+  const gistId = document.getElementById('gistIdInput').value.trim();
+  if(!token){ alert('请输入 Token'); return; }
+  setSyncCfg(token, gistId);
+  document.getElementById('syncModal').classList.remove('show');
+  updateBrandSub();
+  await pushToGist();
+});
+document.getElementById('clearSyncBtn').addEventListener('click',()=>{
+  if(!confirm('清除同步配置？不会删除本地数据。')) return;
+  localStorage.removeItem('sync_token'); localStorage.removeItem('sync_gist_id');
+  document.getElementById('tokenInput').value = ''; document.getElementById('gistIdInput').value = '';
+  document.getElementById('syncModal').classList.remove('show');
+  updateBrandSub();
+});
+document.getElementById('pullBtn').addEventListener('click', pullFromGist);
+
 document.getElementById('newRecordBtn').addEventListener('click',()=>{
   const key = getTodayKey();
   if(!localStorage.getItem(key)){
@@ -305,7 +448,7 @@ document.getElementById('importCsvFile').addEventListener('change', e=>{
     });
     Object.entries(grouped).forEach(([k,d])=>saveRecord(k,d));
     renderAll();
-    setStatus('CSV导入完成', true);
+    setStatusText('CSV导入完成'); setDot('on');
   };
   reader.readAsText(file,'utf-8');
 });
@@ -313,8 +456,9 @@ document.getElementById('importCsvFile').addEventListener('change', e=>{
 const savedTheme = localStorage.getItem('theme')||'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
+updateBrandSub();
 renderAll();
-setStatus('就绪 · 数据存储在浏览器本地', true);
+setStatusText('就绪 · 数据存储在浏览器本地'); setDot('on');
 </script>
 </body>
 </html>
