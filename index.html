@@ -65,7 +65,6 @@
     .asset-label{font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);white-space:nowrap}
     .asset-name{font-size:16px;font-weight:700;color:var(--white);letter-spacing:-0.01em;white-space:nowrap}
     [data-theme="light"] .asset-name{color:#111}
-    /* CHIP TICKER BAR */
     .ticker-bar{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
     .tick-chip{padding:3px 8px;border-radius:2px;border:1px solid var(--line-2);background:var(--surface);font-size:11px;letter-spacing:0.06em;color:var(--muted-2);cursor:pointer;font-family:"SF Mono","Fira Code",monospace;transition:.15s;display:flex;align-items:center;gap:4px;white-space:nowrap}
     .tick-chip:hover{background:var(--surface-3);color:var(--white)}
@@ -80,9 +79,6 @@
     .chip-add .name-input{width:72px}
     .chip-add-btn{padding:3px 9px;border-radius:2px;background:var(--surface-3);color:var(--muted-2);font-size:11px;border:1px solid var(--line-2);cursor:pointer;white-space:nowrap}
     .chip-add-btn:hover{color:var(--white);border-color:var(--muted-2)}
-    .asset-actions{display:flex;gap:6px;flex-shrink:0}
-    .icon-btn{width:28px;height:28px;border-radius:var(--radius);background:var(--surface-3);border:1px solid var(--line-2);color:var(--muted-2);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
-    .icon-btn:hover{color:var(--white);border-color:var(--muted-2)}
     .chart-container{background:var(--bg);border-bottom:1px solid var(--line)}
     .chart-frame{width:100%;height:340px;border:none;display:block}
     .table-scroll{overflow-x:auto}
@@ -204,9 +200,13 @@ async function pushToGist(){
     setDot('on'); setStatusText('✓ 已同步到 Gist · '+new Date().toLocaleString('zh-CN')); updateBrandSub();
   }catch(e){ setDot('error'); setStatusText('同步失败：'+e.message); }
 }
-async function pullFromGist(){
+
+async function pullFromGist(silent){
   const {token,gistId} = getSyncCfg();
-  if(!token||!gistId){ alert('请先配置 Token 和 Gist ID'); document.getElementById('syncModal').classList.add('show'); return; }
+  if(!token||!gistId){
+    if(!silent){ alert('请先配置 Token 和 Gist ID'); document.getElementById('syncModal').classList.add('show'); }
+    return;
+  }
   setDot('syncing'); setStatusText('正在从 Gist 拉取数据...');
   try{
     const res = await fetch('https://api.github.com/gists/'+gistId,{headers:{Authorization:'token '+token}});
@@ -218,8 +218,12 @@ async function pullFromGist(){
     Object.keys(data).forEach(k=>localStorage.setItem(k,data[k]));
     setDot('on'); setStatusText('✓ 已从 Gist 拉取最新数据');
     setTimeout(()=>{setDot('on');renderAll();},800);
-  }catch(e){ setDot('error'); setStatusText('拉取失败：'+e.message); }
+  }catch(e){
+    setDot('error');
+    setStatusText(silent ? '自动拉取失败：'+e.message : '拉取失败：'+e.message);
+  }
 }
+
 function setDot(state){ document.getElementById('statusDot').className='s-dot'+(state?' '+state:''); }
 function setStatusText(msg){ document.getElementById('statusText').textContent=msg; }
 function updateBrandSub(){
@@ -257,8 +261,6 @@ function buildChartUrl(sym){
 }
 
 // ─── TICKER BAR ───────────────────────────────────────────
-// 构建全局共用的 chip 条，返回 DOM元素
-// onSelect(sym): 点击 chip 时回调
 function buildTickerBar(asset, activeSym, onSelect){
   const wrap = document.createElement('div');
   wrap.className = 'ticker-bar';
@@ -270,116 +272,90 @@ function buildTickerBar(asset, activeSym, onSelect){
     presets.forEach((p, idx) => {
       const chip = document.createElement('span');
       chip.className = 'tick-chip' + (p.sym===activeSym?' active':'');
-
-      const label = document.createTextNode(p.label);
-      chip.appendChild(label);
+      chip.appendChild(document.createTextNode(p.label));
 
       const x = document.createElement('span');
       x.className = 'x'; x.textContent = '×'; x.title = '删除';
       x.addEventListener('click', e=>{
         e.stopPropagation();
         if(!confirm(`删除标的「${p.label}」？`)) return;
-        const arr = loadPresets(asset);
-        arr.splice(idx,1);
-        savePresets(asset,arr);
-        // 重渲染所有记录的该资产 ticker bar
+        const arr = loadPresets(asset); arr.splice(idx,1); savePresets(asset,arr);
         document.querySelectorAll(`.ticker-bar[data-asset="${asset}"]`).forEach(b=>{
-          const rec = b.closest('details');
-          const recKey = rec ? rec.id.replace('rec_','') : null;
-          const curSym = recKey ? (asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym) : activeSym;
-          rebuildBar(b, asset, curSym||activeSym, b._onSelect);
+          const rec=b.closest('details'), recKey=rec?rec.id.replace('rec_',''):null;
+          const curSym=recKey?(asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym):activeSym;
+          rebuildBar(b,asset,curSym||activeSym,b._onSelect);
         });
       });
       chip.appendChild(x);
 
       chip.addEventListener('click', ()=>{
-        activeSym = p.sym;
-        onSelect(p.sym);
-        // 刷新当前 bar 的 active 状态
+        activeSym=p.sym; onSelect(p.sym);
         wrap.querySelectorAll('.tick-chip').forEach(c=>c.classList.remove('active'));
         chip.classList.add('active');
       });
       wrap.appendChild(chip);
     });
 
-    // 添加表单
     const form = document.createElement('div');
     form.className = 'chip-add';
-    form.innerHTML = `
-      <input class="sym-input" placeholder="代码，如 SZSE:399006" />
-      <input class="name-input" placeholder="名称" />
-      <button class="chip-add-btn">添加</button>`;
-    const [symIn, nameIn, addBtn] = [form.querySelector('.sym-input'), form.querySelector('.name-input'), form.querySelector('.chip-add-btn')];
-
-    const doAdd = ()=>{
-      const sym  = symIn.value.trim().toUpperCase();
-      const name = nameIn.value.trim() || sym;
+    form.innerHTML = `<input class="sym-input" placeholder="代码，如 SZSE:399006" /><input class="name-input" placeholder="名称" /><button class="chip-add-btn">添加</button>`;
+    const [symIn,nameIn,addBtn]=[form.querySelector('.sym-input'),form.querySelector('.name-input'),form.querySelector('.chip-add-btn')];
+    const doAdd=()=>{
+      const sym=symIn.value.trim().toUpperCase(), name=nameIn.value.trim()||sym;
       if(!sym) return;
-      const arr = loadPresets(asset);
+      const arr=loadPresets(asset);
       if(arr.find(p=>p.sym===sym)){
-        // 已存在，直接切换
         activeSym=sym; onSelect(sym);
         wrap.querySelectorAll('.tick-chip').forEach(c=>c.classList.remove('active'));
-        const found = [...wrap.querySelectorAll('.tick-chip')].find(c=>c.textContent.replace('×','').trim()===name);
-        if(found) found.classList.add('active');
         symIn.value=''; nameIn.value=''; return;
       }
-      arr.push({label:name,sym});
-      savePresets(asset,arr);
+      arr.push({label:name,sym}); savePresets(asset,arr);
       activeSym=sym; onSelect(sym);
-      symIn.value=''; nameIn.value='';
-      render();
-      // 同步到其他记录的该资产 bar
+      symIn.value=''; nameIn.value=''; render();
       document.querySelectorAll(`.ticker-bar[data-asset="${asset}"]`).forEach(b=>{
         if(b===wrap) return;
-        const rec = b.closest('details');
-        const recKey = rec ? rec.id.replace('rec_','') : null;
-        const curSym = recKey ? (asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym) : activeSym;
-        rebuildBar(b, asset, curSym||activeSym, b._onSelect);
+        const rec=b.closest('details'), recKey=rec?rec.id.replace('rec_',''):null;
+        const curSym=recKey?(asset==='gold'?JSON.parse(localStorage.getItem(recKey)||'{}').goldSym:JSON.parse(localStorage.getItem(recKey)||'{}').ashareSym):activeSym;
+        rebuildBar(b,asset,curSym||activeSym,b._onSelect);
       });
     };
-    addBtn.addEventListener('click', doAdd);
-    symIn.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
-    nameIn.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
+    addBtn.addEventListener('click',doAdd);
+    symIn.addEventListener('keydown',e=>{if(e.key==='Enter')doAdd();});
+    nameIn.addEventListener('keydown',e=>{if(e.key==='Enter')doAdd();});
     wrap.appendChild(form);
   }
 
   render();
-  wrap.dataset.asset = asset;
-  wrap._onSelect = onSelect;
+  wrap.dataset.asset=asset;
+  wrap._onSelect=onSelect;
   return wrap;
 }
 
-function rebuildBar(wrapEl, asset, activeSym, onSelect){
-  wrapEl._onSelect = onSelect;
-  const newBar = buildTickerBar(asset, activeSym, onSelect);
-  wrapEl.innerHTML = newBar.innerHTML;
-  // 重新绑定事件（因为 innerHTML 替换了）—— 简化：直接用 replaceWith
-  newBar.dataset.asset = asset;
-  newBar._onSelect = onSelect;
+function rebuildBar(wrapEl,asset,activeSym,onSelect){
+  const newBar=buildTickerBar(asset,activeSym,onSelect);
+  newBar.dataset.asset=asset; newBar._onSelect=onSelect;
   wrapEl.replaceWith(newBar);
 }
 // ─────────────────────────────────────────────────────────
 
-function buildTable(rows, dateKey, assetKey){
+function buildTable(rows,dateKey,assetKey){
   const thead=`<thead><tr>${COL_LABELS.map(l=>`<th>${l}</th>`).join('')}</tr></thead>`;
   const tbodyRows=rows.map((row,ri)=>`<tr>${COLS.map(col=>`<td class="${col==='phase'?'phase':col==='levels'?'level':col==='invalidation'?'invalid':''}" contenteditable="true" data-asset="${assetKey}" data-row="${ri}" data-col="${col}">${row[col]||''}</td>`).join('')}</tr>`).join('');
   return `<div class="table-scroll"><table>${thead}<tbody>${tbodyRows}</tbody></table></div>`;
 }
 
 function buildRecord(entry){
-  const {key,data} = entry;
-  const dateStr = getDateFromKey(key);
-  const updatedAt = data.meta&&data.meta.updatedAt?data.meta.updatedAt:'';
-  const goldSym   = data.goldSym   || 'OANDA:XAUUSD';
-  const ashareSym = data.ashareSym || 'SSE:000001';
-  const goldFrameId   = `gf_${key.replace(/-/g,'_')}`;
-  const ashareFrameId = `af_${key.replace(/-/g,'_')}`;
+  const {key,data}=entry;
+  const dateStr=getDateFromKey(key);
+  const updatedAt=data.meta&&data.meta.updatedAt?data.meta.updatedAt:'';
+  const goldSym=data.goldSym||'OANDA:XAUUSD';
+  const ashareSym=data.ashareSym||'SSE:000001';
+  const goldFrameId=`gf_${key.replace(/-/g,'_')}`;
+  const ashareFrameId=`af_${key.replace(/-/g,'_')}`;
 
-  const details = document.createElement('details');
-  details.className = 'record';
-  details.id = 'rec_'+key;
-  details.innerHTML = `
+  const details=document.createElement('details');
+  details.className='record'; details.id='rec_'+key;
+  details.innerHTML=`
     <summary>
       <div class="sum-left">
         <span class="date-label">${dateStr}</span>
@@ -388,101 +364,81 @@ function buildRecord(entry){
       <div class="sum-right"><span class="chevron">▼</span></div>
     </summary>
     <div class="record-body">
-      <div class="asset-block" id="ab_gold_${key}">
+      <div class="asset-block">
         <div class="asset-header">
           <div class="asset-meta">
-            <div>
-              <div class="asset-label">Precious Metal</div>
-              <div class="asset-name">黄金</div>
-            </div>
+            <div><div class="asset-label">Precious Metal</div><div class="asset-name">黄金</div></div>
             <div class="gold-ticker-slot"></div>
           </div>
         </div>
         <div class="chart-container"><iframe class="chart-frame" id="${goldFrameId}" src="${buildChartUrl(goldSym)}"></iframe></div>
-        ${buildTable(data.gold, key, 'gold')}
+        ${buildTable(data.gold,key,'gold')}
       </div>
-      <div class="asset-block" id="ab_ashare_${key}">
+      <div class="asset-block">
         <div class="asset-header">
           <div class="asset-meta">
-            <div>
-              <div class="asset-label">China Equity</div>
-              <div class="asset-name">A 股</div>
-            </div>
+            <div><div class="asset-label">China Equity</div><div class="asset-name">A 股</div></div>
             <div class="ashare-ticker-slot"></div>
           </div>
         </div>
         <div class="chart-container"><iframe class="chart-frame" id="${ashareFrameId}" src="${buildChartUrl(ashareSym)}"></iframe></div>
-        ${buildTable(data.ashare, key, 'ashare')}
+        ${buildTable(data.ashare,key,'ashare')}
       </div>
     </div>`;
 
-  // 注入 ticker bar
-  let curGoldSym   = goldSym;
-  let curAshareSym = ashareSym;
-
-  const goldBar = buildTickerBar('gold', curGoldSym, sym=>{
-    curGoldSym = sym;
-    document.getElementById(goldFrameId).src = buildChartUrl(sym);
-    const d = JSON.parse(localStorage.getItem(key)||'{}');
-    d.goldSym = sym; saveRecord(key, d);
-    details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+  let curGoldSym=goldSym, curAshareSym=ashareSym;
+  const goldBar=buildTickerBar('gold',curGoldSym,sym=>{
+    curGoldSym=sym;
+    document.getElementById(goldFrameId).src=buildChartUrl(sym);
+    const d=JSON.parse(localStorage.getItem(key)||'{}'); d.goldSym=sym; saveRecord(key,d);
+    details.querySelector('.date-sub').textContent=d.meta.updatedAt;
   });
-  const ashareBar = buildTickerBar('ashare', curAshareSym, sym=>{
-    curAshareSym = sym;
-    document.getElementById(ashareFrameId).src = buildChartUrl(sym);
-    const d = JSON.parse(localStorage.getItem(key)||'{}');
-    d.ashareSym = sym; saveRecord(key, d);
-    details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+  const ashareBar=buildTickerBar('ashare',curAshareSym,sym=>{
+    curAshareSym=sym;
+    document.getElementById(ashareFrameId).src=buildChartUrl(sym);
+    const d=JSON.parse(localStorage.getItem(key)||'{}'); d.ashareSym=sym; saveRecord(key,d);
+    details.querySelector('.date-sub').textContent=d.meta.updatedAt;
   });
-
   details.querySelector('.gold-ticker-slot').replaceWith(goldBar);
   details.querySelector('.ashare-ticker-slot').replaceWith(ashareBar);
 
-  // 表格编辑
   details.querySelectorAll('td[contenteditable]').forEach(td=>{
-    td.addEventListener('blur', ()=>{
-      const d = JSON.parse(localStorage.getItem(key)||'{}');
-      const asset = td.dataset.asset, ri = +td.dataset.row, col = td.dataset.col;
+    td.addEventListener('blur',()=>{
+      const d=JSON.parse(localStorage.getItem(key)||'{}');
+      const asset=td.dataset.asset,ri=+td.dataset.row,col=td.dataset.col;
       if(!d[asset]) return;
-      d[asset][ri][col] = td.innerText.trim();
-      saveRecord(key, d);
-      details.querySelector('.date-sub').textContent = d.meta.updatedAt;
+      d[asset][ri][col]=td.innerText.trim(); saveRecord(key,d);
+      details.querySelector('.date-sub').textContent=d.meta.updatedAt;
     });
   });
-
   return details;
 }
 
 function renderAll(){
-  const entries = loadAll();
-  const list = document.getElementById('recordList');
-  list.innerHTML = '';
-  entries.forEach((e,i)=>{
-    const el = buildRecord(e);
-    if(i===0) el.open = true;
-    list.appendChild(el);
-  });
+  const entries=loadAll();
+  const list=document.getElementById('recordList');
+  list.innerHTML='';
+  entries.forEach((e,i)=>{ const el=buildRecord(e); if(i===0) el.open=true; list.appendChild(el); });
 }
 
 // 新建按鈕
 document.getElementById('newRecordBtn').addEventListener('click',()=>{
-  const todayKey = getTodayKey();
+  const todayKey=getTodayKey();
   let targetKey;
   if(!localStorage.getItem(todayKey)){
-    targetKey = todayKey;
+    targetKey=todayKey;
   } else {
-    const input = prompt('今日复盘已存在，请输入其他日期（YYYY-MM-DD）：', getDateFromKey(todayKey));
+    const input=prompt('今日复盘已存在，请输入其他日期（YYYY-MM-DD）：',getDateFromKey(todayKey));
     if(!input) return;
-    const date = input.trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('日期格式不正确'); return; }
-    targetKey = 'journal_'+date;
-    if(localStorage.getItem(targetKey)){ alert('该日期已存在'); return; }
+    const date=input.trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('日期格式不正确');return;}
+    targetKey='journal_'+date;
+    if(localStorage.getItem(targetKey)){alert('该日期已存在');return;}
   }
-  const date = getDateFromKey(targetKey);
-  saveRecord(targetKey, newEmptyData(date));
+  saveRecord(targetKey,newEmptyData(getDateFromKey(targetKey)));
   renderAll();
-  const el = document.getElementById('rec_'+targetKey);
-  if(el){ el.open=true; el.scrollIntoView({behavior:'smooth',block:'start'}); }
+  const el=document.getElementById('rec_'+targetKey);
+  if(el){el.open=true;el.scrollIntoView({behavior:'smooth',block:'start'});}
 });
 
 document.getElementById('toggleAllBtn').addEventListener('click',()=>{
@@ -492,8 +448,8 @@ document.getElementById('toggleAllBtn').addEventListener('click',()=>{
 });
 document.getElementById('themeBtn').addEventListener('click',()=>{
   const html=document.documentElement;
-  html.setAttribute('data-theme', html.getAttribute('data-theme')==='light'?'dark':'light');
-  localStorage.setItem('theme', html.getAttribute('data-theme'));
+  html.setAttribute('data-theme',html.getAttribute('data-theme')==='light'?'dark':'light');
+  localStorage.setItem('theme',html.getAttribute('data-theme'));
 });
 document.getElementById('syncBtn').addEventListener('click',()=>{
   const {token,gistId}=getSyncCfg();
@@ -515,7 +471,7 @@ document.getElementById('clearSyncBtn').addEventListener('click',()=>{
   document.getElementById('tokenInput').value=''; document.getElementById('gistIdInput').value='';
   document.getElementById('syncModal').classList.remove('show'); updateBrandSub();
 });
-document.getElementById('pullBtn').addEventListener('click',pullFromGist);
+document.getElementById('pullBtn').addEventListener('click',()=>pullFromGist(false));
 document.getElementById('archiveBtn').addEventListener('click',()=>{
   const entries=loadAll();
   const blob=new Blob([JSON.stringify(entries.map(e=>e.data),null,2)],{type:'application/json'});
@@ -542,8 +498,7 @@ document.getElementById('importCsvFile').addEventListener('change',e=>{
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=ev=>{
-    const lines=ev.target.result.split('\n').slice(1);
-    const grouped={};
+    const lines=ev.target.result.split('\n').slice(1), grouped={};
     lines.forEach(line=>{
       const cols=line.match(/"([^"]*)"/g);
       if(!cols||cols.length<7) return;
@@ -561,11 +516,22 @@ document.getElementById('importCsvFile').addEventListener('change',e=>{
   reader.readAsText(file,'utf-8');
 });
 
+// ─── 初始化 ───────────────────────────────────────────
 const savedTheme=localStorage.getItem('theme')||'dark';
 document.documentElement.setAttribute('data-theme',savedTheme);
 updateBrandSub();
-renderAll();
-setStatusText('就绪 · 数据存储在浏览器本地'); setDot('on');
+
+// 页面加载时：若已配置同步，自动从 Gist 拉取最新数据，否则直接渲染本地
+const {token: _t, gistId: _g} = getSyncCfg();
+if(_t && _g){
+  setStatusText('正在自动拉取最新数据...');
+  setDot('syncing');
+  pullFromGist(true); // 静默模式，失败不弹窗
+} else {
+  renderAll();
+  setStatusText('就绪 · 数据存储在浏览器本地'); setDot('on');
+}
+// ─────────────────────────────────────────────────────────
 </script>
 </body>
 </html>
